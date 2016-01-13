@@ -1,2 +1,2 @@
-tectonic_cyclicity	amp1	amp2	amp3	amp4	amp5	phase1	phase2	phase3	phase4	phase5	ssr
-1	999.747041332124	1.9	3.1	8.9	6.9	13.3	1.5	2.6	1.8	0.5	0	68996.85
+tectonic_cyclicity	amp1	amp2	amp3	amp4	amp5	phase1	phase2	phase3	phase4	phase5	ssr	aic_4func	aic_5func	loglik_4func	loglik_5func	pvalue
+999.747041332124	1.9	3.1	8.9	6.9	13.3	1.5	2.6	1.8	0.5	0	68996.85	3980.299	3980.299	-2097.8	-1961.549	8.86915421710837e-59

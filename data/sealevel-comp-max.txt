@@ -1,4 +1,4 @@
-interval	-time	level
+interval	time	level
 I	-296911956	24.8
 I	-296892594	16.5
 I	-296891819.5	17.3

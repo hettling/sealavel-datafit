@@ -75,26 +75,24 @@ cost.5func <- function(p) {
 
 ## objective function for f1-f5 with frequency optimized
 cost.5func.freq <- function(p) {
-    phase1 <- p['phase1']
-    phase2 <- p['phase2']
-    phase3 <- p['phase3']
-    phase4 <- p['phase4']
-    phase5 <- p['phase5']
+    
+    phase1 <- p[1];#['phase1']
+    phase2 <- p[2];#['phase2']
+    phase3 <- p[3];#['phase3']
+    phase4 <- p[4];#['phase4']
+    phase5 <- p[5]#['phase5']
 
-    amp1 <- p['amp1']
-    amp2 <- p['amp2']
-    amp3 <- p['amp3']
-    amp4 <- p['amp4']
-    amp5 <- p['amp5']
+    amp1 <- p[6]#['amp1']
+    amp2 <- p[7]#['amp2']
+    amp3 <- p[8]#['amp3']
+    amp4 <- p[9]#['amp4']
+    amp5 <- p[10]#['amp5']
 
-    freq5 <- p['freq5']
+    freq5 <- p[11]#['freq5']
 
     sim <- ff(amp1, t=T, f=f1, phase1) + ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3) + ff(amp4, t=T, f=f4, phase4) + ff(amp5, t=T, f=freq5, phase5)
     sq <- ssr(sim, level)
-    cat("F5 = " , freq5, " cost = ", sq, "\n" );
 
- #   cat(paste(p, ","), "\n")
- #   recover()
     return (sq)
 }
 
@@ -137,9 +135,9 @@ fit.nls <- function() {
     cat("fitted 5 func\n")
     ## fit with four orbital cycles, third order including frequency
 
-    cat("f5 : ", f5, "\n")
+    
     fit.5func.freq <- grid.nls(level~ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3)+ff(amp4, t=T, f=f4, phase4)+ff(amp5, t=T, f=freq5, phase5),
-                               start=list(phase1=0.1, phase2=1, phase3=3, phase4=3, phase5=2, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5),
+                               start=list(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5),
                                start.subset=c('phase1', 'phase2', 'phase3', 'phase4', 'phase5'))
     cat("fitted 5 func with frequency \n")
 
@@ -157,7 +155,7 @@ fit.optim <- function() {
     start.f5 <- c(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5)
     opt.f5 <- optim(start.f5, cost.5func, control=list(maxit=1e7), lower=0, method='L-BFGS-B')
 
-    start.f5.freq <- c(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5)
+    start.f5.freq <- c(phase1=1, phase2=2, phase3=1, phase4=2, phase5=1, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5)
     lower <- c(rep(0, length(start.f5.freq)-1), 1)
     upper <- c(rep(2*pi, 5), rep(10000, 6) )
     opt.f5.freq <- optim(start.f5.freq, cost.5func.freq, control=list(maxit=1e7), lower=lower, upper=upper, method='L-BFGS-B')

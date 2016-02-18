@@ -68,6 +68,7 @@ cost.5func <- function(p) {
 
     sim <- ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3) + ff(amp4, t=T, f=f4, phase4) + ff(amp5, t=T, f=f5, phase5)
     sq <- ssr(sim, level)
+
     return (sq)
 }
 
@@ -88,8 +89,12 @@ cost.5func.freq <- function(p) {
 
     freq5 <- p['freq5']
 
-    sim <- ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3) + ff(amp4, t=T, f=f4, phase4) + ff(amp5, t=T, f=freq5, phase5)
+    sim <- ff(amp1, t=T, f=f1, phase1) + ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3) + ff(amp4, t=T, f=f4, phase4) + ff(amp5, t=T, f=freq5, phase5)
     sq <- ssr(sim, level)
+    cat("F5 = " , freq5, " cost = ", sq, "\n" );
+
+ #   cat(paste(p, ","), "\n")
+ #   recover()
     return (sq)
 }
 
@@ -131,6 +136,8 @@ fit.nls <- function() {
                           start.subset=c('phase1', 'phase2', 'phase3', 'phase4', 'phase5'))
     cat("fitted 5 func\n")
     ## fit with four orbital cycles, third order including frequency
+
+    cat("f5 : ", f5, "\n")
     fit.5func.freq <- grid.nls(level~ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3)+ff(amp4, t=T, f=f4, phase4)+ff(amp5, t=T, f=freq5, phase5),
                                start=list(phase1=0.1, phase2=1, phase3=3, phase4=3, phase5=2, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5),
                                start.subset=c('phase1', 'phase2', 'phase3', 'phase4', 'phase5'))
@@ -151,7 +158,9 @@ fit.optim <- function() {
     opt.f5 <- optim(start.f5, cost.5func, control=list(maxit=1e7), lower=0, method='L-BFGS-B')
 
     start.f5.freq <- c(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5)
-    opt.f5.freq <- optim(start.f5.freq, cost.5func.freq, control=list(maxit=1e7), lower=0, method='L-BFGS-B')
+    lower <- c(rep(0, length(start.f5.freq)-1), 1)
+    upper <- c(rep(2*pi, 5), rep(10000, 6) )
+    opt.f5.freq <- optim(start.f5.freq, cost.5func.freq, control=list(maxit=1e7), lower=lower, upper=upper, method='L-BFGS-B')
 
     res <- list(opt.f4, opt.f5, opt.f5.freq)
     names (res) <- c("funcs4", "funcs5", "funcs5.freq")

@@ -146,7 +146,47 @@ fit.nls <- function() {
     return (res)
 }
 
-# fit models using the optim function
+
+#    out <- adaptMetropGibbs(cost.mcmc, log(start.f5.freq), batch=10, batch.length=50000, report=1, accept.rate=(rep(0.25, length(start.f5.freq))), verbose=T)
+## omit burnin
+#    n <- out$batch*out$batch.length
+#    burnin <- n / 10
+#    ens <- exp(out$p.theta.samples)[burnin:n,]                    
+
+## do a mcmc for model with tectonic cyclicity
+mcmc.f5.freq <- function() {
+    start.f5.freq <- c(phase1=1, phase2=2, phase3=1, phase4=2, phase5=1, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5)
+    cost.mcmc <- function(p) {
+        cost <- cost.5func.freq(exp(p))
+        return ((-cost))
+    }
+    ## we are in logspace, therefore have to scale to small steps to get good acceptance
+    length <- 20000
+    ## m <- metrop(cost.mcmc, log(start.f5.freq), length, scale=0.007)
+    out <- adaptMetropGibbs(cost.mcmc, log(start.f5.freq), batch=10, batch.length=50000, report=1, accept.rate=(rep(0.25, length(start.f5.freq))), verbose=T)
+
+    post <- exp(out$p.theta.samples)
+
+    ssr <- apply(post, 1, cost.5func.freq)
+    min.ssr <- min(ssr)
+    cat("Min SSR for MCMC : ", min.ssr, "\n")
+        
+    ## discard first 10% as burn-in
+    burnin <- (dim(post)[1] / 10)+ 1
+    post <- post[burnin:dim(post)[1],]
+
+    ## calculate autocorrelation times for thinning
+    acf.mat <- apply(post, 2, function(x)acf(x, lag.max=10000, plot=FALSE, n.used=nrow(post))$acf)  
+    corrtimes <- apply( acf.mat , 2, function(x){ which(x < 1/exp(1))[1] })
+    max.cor <- max(corrtimes)
+
+    ## thinning
+    post <- post[seq(1, dim(post)[1], max.cor),]
+       
+    return (post)
+}
+    
+## fit models using the optim function
 fit.optim <- function() {
 
     start.f4 <- c(phase1=0, phase2=0, phase3=0, phase4=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4)

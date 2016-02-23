@@ -1,9 +1,8 @@
-
-
 require('lmtest')
+require('mcmc')
 set.seed(111)
 
-datafile <- 'sealevel-comp-max.txt'
+datafile <- 'sealevel-comp-avg.txt'
 #datafile <- 'sealevel-comp-min.txt'
 #datafile <- 'sealevel-comp-max.txt'
 plotfile <- paste0(substr(datafile, 0, nchar(datafile)-4), '.pdf')
@@ -20,7 +19,7 @@ amp1 <- 1#10
 amp2 <- 1#40
 amp3 <- 1#50
 amp4 <- 1#50
-amp5 <- 1000
+amp5 <- 10
 
 ## cycle frequencies
 f1 <- 23

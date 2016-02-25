@@ -2,13 +2,13 @@ require('lmtest')
 require('mcmc')
 set.seed(111)
 
-datafile <- 'sealevel-comp-avg.txt'
+datafile <- 'sealevel-comp-max.txt'
 #datafile <- 'sealevel-comp-min.txt'
 #datafile <- 'sealevel-comp-max.txt'
 plotfile <- paste0(substr(datafile, 0, nchar(datafile)-4), '.pdf')
 restable <- paste0(substr(datafile, 0, nchar(datafile)-4), '.tsv')
 
-dat <- read.table(paste0('../data/', datafile), header=T)
+dat <- read.table(paste0('../data/', datafile), header=T, stringsAsFactors=F)
 
 #dat <- dat[which(dat$interval %in% c("I", "II", "III")),]
 
@@ -36,11 +36,17 @@ ff <- function(amp, t, f, phase) {
 
 ## get data, units : kyears and meters, respectively
 #interval <- dat[,'interval']
-T <- dat[,'time']/1000
+T <- as.vector(dat[,'time'])/1000
 offset <- min(T) 
-T <- T - offset 
-level <- dat[,'level']
+T <- T - offset
+level_min <- dat[,'level_min']
+level_max <- dat[,'level_max']
+level_avg <- dat[,'level_avg']
 
+level_sds<- apply(cbind(level_min, level_max), 1, sd)
+
+
+level <- level_avg
 
 ## Results below are named lists of length 5 consisting the following models:
 ##  1)  funcs4: model with four orbital cycles
@@ -48,34 +54,39 @@ level <- dat[,'level']
 ##  3)  functs5.freq: model with four orbital cycles, third order and optimized third order frequency
 
 ## fits for all models with nls
-res.nls <- fit.nls()
+res.nls.avg <- fit.nls(level_avg)
+res.nls.min <- fit.nls(level_min)
+res.nls.max <- fit.nls(level_max)
 
 ## fits for all models with optim
-res.opt <- fit.optim()
+##res.opt <- fit.optim()
 
 ## predict sea level with all models
-sim.nls <- lapply(res.nls, predict)
-sim.opt <- list(predict.4func(res.opt[[1]]$par), predict.5func(res.opt[[2]]$par), predict.5func.freq(res.opt[[3]]$par))
+sim.nls.avg <- lapply(res.nls.avg, predict)
+sim.nls.min <- lapply(res.nls.min, predict)
+sim.nls.max <- lapply(res.nls.max, predict)
+
+##sim.opt <- list(predict.4func(res.opt[[1]]$par), predict.5func(res.opt[[2]]$par), predict.5func.freq(res.opt[[3]]$par))
 
 # get sum of squared residuals for all models
-ssr.nls <- lapply(sim.nls, ssr, level)
-ssr.opt <- lapply(sim.opt, ssr, level)
+ssr.nls <- lapply(sim.nls.avg, ssr, level_avg)
+##ssr.opt <- lapply(sim.opt, ssr, level)
 
 ## get degrees of freedom for all models
 degrees <- list(funcs4=8, funcs5=10, func5freq=11)# <- lapply(res.nls, function(x){summary(x)$df[1]})
 
 ## calculate log likelihood
-loglik.nls <- mapply(my.loglik, list(level, level, level), sim.nls, degrees)
-loglik.opt <- mapply(my.loglik, list(level, level, level), sim.opt, degrees)
+loglik.nls <- mapply(my.loglik, list(level, level, level), sim.nls.avg, degrees)
+##loglik.opt <- mapply(my.loglik, list(level, level, level), sim.opt, degrees)
 
 ## calculate AIC
 aic.nls <- mapply(my.aic, loglik.nls, degrees)
-aic.opt <- mapply(my.aic, loglik.opt, degrees)
+##aic.opt <- mapply(my.aic, loglik.opt, degrees)
 
 ## likelihood ratio tests between various models
-t4.5 <- lrtest(res.nls[['funcs4']], res.nls[['funcs5']])
-t4.5.fr <- lrtest(res.nls[['funcs4']], res.nls[['func5freq']])
-t5.5.fr <- lrtest(res.nls[['funcs5']], res.nls[['func5freq']])
+t4.5 <- lrtest(res.nls.avg[['funcs4']], res.nls.avg[['funcs5']])
+t4.5.fr <- lrtest(res.nls.avg[['funcs4']], res.nls.avg[['func5freq']])
+t5.5.fr <- lrtest(res.nls.avg[['funcs5']], res.nls.avg[['func5freq']])
 
 ## change to negative times again
 T <- T + offset
@@ -84,16 +95,9 @@ T <- T + offset
 source('plot.R')
 
 ## print values needed for paper
-pars <- res.nls$func5freq$m$getPars()
-
-## frequency of fifth cycle
-#cat("Tectonic cyclicity : ", pars['freq5'], " years\n")
-
-## results of likelihood ratio test
-#print(t4.5.fr)
-
-## AIC
-#cat("AIC simpler model: ", aic.nls[2], " tectonic model : ", aic.nls[3], "\n");
+pars.avg <- round(res.nls.avg$func5freq$m$getPars(), 2)
+pars.min <- round(res.nls.min$func5freq$m$getPars(), 2)
+pars.max <- round(res.nls.max$func5freq$m$getPars(), 2)
 
 ## get p value for likelihood rato test
 pval <- t4.5.fr["Pr(>Chisq)"][[1]][2]
@@ -103,11 +107,27 @@ loglik.5func.freq <- round(t4.5.fr$LogLik[2], 3)
 aic.4func <- round(aic.nls[2], 3)
 aic.5func.freq <- round(aic.nls[3], 3)
 
-## amplitudes
-##cat("Amplitudes : ", round(pars[paste0('amp', 1:5)],1), "\n")
+
+## Generate table
+
+pars.total <- vector()
+
+for (n in names(pars.avg)) {    
+    str <- paste(pars.avg[n], '(', pars.min[n], '--', pars.max[n], ')')
+    pars.total[n] <- str
+}
 
 ## write results to table
-results <- c(tectonic_cyclicity=unname(pars['freq5']), round(pars[paste0('amp', 1:5)],1), round(pars[paste0('phase', 1:5)],1), ssr=round(ssr.nls[[3]],2), aic_4func=aic.4func, aic_5func=aic.5func.freq, loglik_4func=loglik.4func, loglik_5func=loglik.5func.freq, pvalue=pval)
+results <- c(
+    tectonic_cyclicity=unname(pars.total['freq5']),
+    pars.total[paste0('amp', 1:5)],
+    pars.total[paste0('phase', 1:5)],
+    ssr=round(ssr.nls[[3]],2),
+    aic_4func=aic.4func,
+    aic_5func=aic.5func.freq,
+    loglik_4func=loglik.4func,
+    loglik_5func=loglik.5func.freq,
+    pvalue=pval)
 write.table(data.frame(t(results)), file=restable, quote=F, sep="\t", row.names=F)
 
 

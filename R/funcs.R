@@ -82,6 +82,10 @@ cost.5func.freq <- function(p) {
     phase4 <- p[4];#['phase4']
     phase5 <- p[5]#['phase5']
 
+    if (max (c(phase1, phase2, phase3, phase4, phase5)) > 2*pi) {
+        return (-Inf)
+    }
+    
     amp1 <- p[6]#['amp1']
     amp2 <- p[7]#['amp2']
     amp3 <- p[8]#['amp3']
@@ -95,6 +99,28 @@ cost.5func.freq <- function(p) {
 
     return (sq)
 }
+
+## objective function for f1-f5 with frequency optimized
+sim.5func.freq <- function(p) {
+    
+    phase1 <- p[1];#['phase1']
+    phase2 <- p[2];#['phase2']
+    phase3 <- p[3];#['phase3']
+    phase4 <- p[4];#['phase4']
+    phase5 <- p[5]#['phase5']
+
+    amp1 <- p[6]#['amp1']
+    amp2 <- p[7]#['amp2']
+    amp3 <- p[8]#['amp3']
+    amp4 <- p[9]#['amp4']
+    amp5 <- p[10]#['amp5']
+
+    freq5 <- p[11]#['freq5']
+
+    sim <- ff(amp1, t=T, f=f1, phase1) + ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3) + ff(amp4, t=T, f=f4, phase4) + ff(amp5, t=T, f=freq5, phase5)
+    return (sim)
+}
+
 
 ## grid search to find suitable starting points for the optimization with nls
 ## this is because nls is very sensitive to starting values
@@ -119,7 +145,8 @@ grid.nls <- function(formula, start, start.subset, ...) {
 }
 
 ## fit models using nls, call the grid search to get good starting values
-fit.nls <- function() {
+fit.nls <- function(data) {
+    level <<- data
     cat("fitting using nls\n")
 
     ## fit with four orbital cycles
@@ -163,7 +190,7 @@ mcmc.f5.freq <- function() {
     ## we are in logspace, therefore have to scale to small steps to get good acceptance
     length <- 20000
     ## m <- metrop(cost.mcmc, log(start.f5.freq), length, scale=0.007)
-    out <- adaptMetropGibbs(cost.mcmc, log(start.f5.freq), batch=10, batch.length=50000, report=1, accept.rate=(rep(0.25, length(start.f5.freq))), verbose=T)
+    out <- adaptMetropGibbs(cost.mcmc, log(start.f5.freq), batch=10, batch.length=5000, report=1, accept.rate=(rep(0.25, length(start.f5.freq))), verbose=T)
 
     post <- exp(out$p.theta.samples)
 
@@ -181,7 +208,7 @@ mcmc.f5.freq <- function() {
     max.cor <- max(corrtimes)
 
     ## thinning
-    post <- post[seq(1, dim(post)[1], max.cor),]
+    ppost <- post[seq(1, dim(post)[1], max.cor),]
        
     return (post)
 }

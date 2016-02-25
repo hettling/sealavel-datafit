@@ -1,6 +1,6 @@
 pdf(plotfile, family="Times", width=3.4, height=3.4, pointsize=7)
 par(mar=c(4.1, 4.1, 1.5, 1.1))
-plot(level~T, ylim=c(-80, 120), xlab="time (k years)", ylab="eustatic sea level (m)", type='n', cex.lab=1.3)
+plot(level_avg~T, ylim=c(-80, 120), xlab="time (k years)", ylab="eustatic sea level (m)", type='n', cex.lab=1.3)
 
 color <- 'grey80'
 
@@ -20,14 +20,22 @@ for (iv in unique(dat$interval)) {
 }
 
 
-# plot data
-points(level~T, xlab="time (k years)", ylab="eustatic sea level (m)", pch=18)
+## plot data
+points(level_avg~T, xlab="time (k years)", ylab="eustatic sea level (m)", pch=18)
+## error bars
+arrows(T, level_avg - level_sds, T, level_avg + level_sds, length=0.02, angle=90, code=3, lwd=0.2)
 
-# plot fit with four orbital cycles
-lines(T, sim.nls$funcs4, col='blue', lwd=2)
+## plot fit with four orbital cycles
+lines(T, sim.nls.avg$funcs4, col='blue', lwd=2)
+## upper and lower bound
+lines(T, sim.nls.max$funcs4, col='blue', lwd=1, lty=2)
+lines(T, sim.nls.min$funcs4, col='blue', lwd=1, lty=2)
 
-# plot fit with four orbital and third order cycle
-lines(T, sim.nls$func5freq, col='red', lwd=2)
+## plot fit with four orbital and third order cycle
+lines(T, sim.nls.avg$func5freq, col='red', lwd=2)
+## upper and lower bound
+lines(T, sim.nls.max$func5freq, col='red', lwd=1, lty=2)
+lines(T, sim.nls.min$func5freq, col='red', lwd=1, lty=2)
 
 legend('bottomleft', col=c('blue', 'red'), legend=c('orbital cycles', 'orbital cycles + third order cycle'), box.lwd=0, lwd=2, box.col='white')
 dev.off()

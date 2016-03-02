@@ -75,7 +75,7 @@ cost.5func <- function(p) {
 
 ## objective function for f1-f5 with frequency optimized
 cost.5func.freq <- function(p) {
-    
+
     phase1 <- p[1];#['phase1']
     phase2 <- p[2];#['phase2']
     phase3 <- p[3];#['phase3']
@@ -83,9 +83,9 @@ cost.5func.freq <- function(p) {
     phase5 <- p[5]#['phase5']
 
     if (max (c(phase1, phase2, phase3, phase4, phase5)) > 2*pi) {
-        return (-Inf)
+        return (Inf)
     }
-    
+
     amp1 <- p[6]#['amp1']
     amp2 <- p[7]#['amp2']
     amp3 <- p[8]#['amp3']
@@ -93,6 +93,11 @@ cost.5func.freq <- function(p) {
     amp5 <- p[10]#['amp5']
 
     freq5 <- p[11]#['freq5']
+
+    cat("Freq5 : ", freq5, '\n');
+    if (freq5 <= 0) {
+        return (1e7)
+    }
 
     sim <- ff(amp1, t=T, f=f1, phase1) + ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3) + ff(amp4, t=T, f=f4, phase4) + ff(amp5, t=T, f=freq5, phase5)
     sq <- ssr(sim, level)
@@ -102,7 +107,7 @@ cost.5func.freq <- function(p) {
 
 ## objective function for f1-f5 with frequency optimized
 sim.5func.freq <- function(p) {
-    
+
     phase1 <- p[1];#['phase1']
     phase2 <- p[2];#['phase2']
     phase3 <- p[3];#['phase3']
@@ -124,24 +129,69 @@ sim.5func.freq <- function(p) {
 
 ## grid search to find suitable starting points for the optimization with nls
 ## this is because nls is very sensitive to starting values
-grid.nls <- function(formula, start, start.subset, ...) {
+grid.nls <- function(formula, start, ...) {
 
-    range <- seq(0, 2*pi, 0.5)
-    grid <- expand.grid(sapply(start.subset, function(x)list(range)))
+    phases <- c('phase1', 'phase2', 'phase3', 'phase4', 'phase5')
+    range.phases <- seq(0, 2*pi, length.out=3)
+    amplitudes <- c('amp1', 'amp2', 'amp3', 'amp4', 'amp5')
+    range.amplitudes <- seq(1, 100, length.out=3)
+    range.f5 <- seq(1, 2000, length.out=3)
+
+    ll <- list()
+    for (p in phases) {
+        ll[[p]] <- range.phases
+    }
+    for (a in amplitudes) {
+        ll[[a]] <- range.amplitudes
+    }
+    ll[['freq5']] <- rev(range.f5)
+
+    grid <- expand.grid(ll)
+    grid <- grid[, names(start)]
+
+    ## take random subset of grid, for performance reasons
+    grid.size <- 20000
+    grid <- grid[sample(1:nrow(grid))[1:grid.size],]
+
+    ## set upper bound for phase
     upper <- start
     upper[names(upper)] <- 1e7
-    # set upper bound for phase
-    upper[start.subset] <- 2*pi
+    upper[phases] <- 2*pi
+    lower <- start
+    lower[names(lower)] <- 0
+    lower['freq5'] <- 1e-7
+
+    results <- list()
     for (i in 1:nrow(grid)) {
         cat('starting parameter set # ', i, '\n')
-        start[start.subset] <- grid[i,]
-        model <- try ( nls ( formula, start=as.vector(start), lower=0, upper=upper, algorithm='port' ))
-        if (!inherits(model, "try-error")){
+        start[names(start)] <- grid[i,names(start)]
+        start <- unlist(start)
+        model <- try ( nls ( formula, start=start, lower=lower, upper=upper, algorithm='port', control=nls.control(maxiter = 500,printEval=FALSE)))
+        if (!inherits(model, "try-error")) {
             cat('optimization succesful\n')
-            return(model);
+            ##return(model);
+            results[[length(results)+1]] <- model
         }
-
     }
+    ## look at best performing model
+    ssrs <- sapply(results, function(f)f$m$deviance())
+    best.idx <- which(ssrs==min(ssrs))[1]
+    best <- results[[best.idx]]
+    cat ("SSR of best model (own grid search)  : ", best$m$deviance(), "\n")
+    ## do another fit:
+    reest <- try (nls(formula, start=best$m$getPars(), algorithm='port', lower=lower, upper=upper))
+    if (!inherits(reest, "try-error")) {
+        cat ("SSR of re-fitted best model (own grid search)  : ", reest$m$deviance(), "\n")
+        return (reest)
+    } else {
+        return (best)
+    }
+    #require('nls2')
+    ## make fit using grid nls2
+    #model.2 <- nls2 ( formula, start=grid, lower=lower, upper=upper, algorithm='grid-search', control=nls.control(maxiter = 500,printEval=FALSE))
+    #m.2 <- nls2(formula, start=model.2, algorithm='port', lower=lower, upper=upper)
+    #cat ("SSR of best model (nls2)  : ", m.2$m$deviance(), "\n")
+
 }
 
 ## fit models using nls, call the grid search to get good starting values
@@ -151,21 +201,17 @@ fit.nls <- function(data) {
 
     ## fit with four orbital cycles
     fit.4func <- grid.nls(level~ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3)+ff(amp4, t=T, f=f4, phase4),
-                          start=list(phase1=0, phase2=0, phase3=0, phase4=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4),
-                          start.subset=c('phase1', 'phase2', 'phase3', 'phase4'))
+                          start=list(phase1=0, phase2=0, phase3=0, phase4=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4))
     cat("fitted 4 func\n")
 
     ## fit with four orbital cycles, third order, fixed frequency
     fit.5func <- grid.nls(level~ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3)+ff(amp4, t=T, f=f4, phase4)+ff(amp5, t=T, f=f5, phase5),
-                          start=list(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5),
-                          start.subset=c('phase1', 'phase2', 'phase3', 'phase4', 'phase5'))
+                          start=list(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5))
     cat("fitted 5 func\n")
-    ## fit with four orbital cycles, third order including frequency
 
-    
+    ## fit with four orbital cycles, third order including frequency
     fit.5func.freq <- grid.nls(level~ff(amp1, t=T, f=f1, phase1)+ff(amp2, t=T, f=f2, phase2)+ff(amp3, t=T, f=f3, phase3)+ff(amp4, t=T, f=f4, phase4)+ff(amp5, t=T, f=freq5, phase5),
-                               start=list(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5),
-                               start.subset=c('phase1', 'phase2', 'phase3', 'phase4', 'phase5'))
+                               start=list(phase1=0, phase2=0, phase3=0, phase4=0, phase5=0, amp1=amp1, amp2=amp2, amp3=amp3, amp4=amp4, amp5=amp5, freq5=f5))
     cat("fitted 5 func with frequency \n")
 
     res <- list(fit.4func, fit.5func, fit.5func.freq)
@@ -178,7 +224,7 @@ fit.nls <- function(data) {
 ## omit burnin
 #    n <- out$batch*out$batch.length
 #    burnin <- n / 10
-#    ens <- exp(out$p.theta.samples)[burnin:n,]                    
+#    ens <- exp(out$p.theta.samples)[burnin:n,]
 
 ## do a mcmc for model with tectonic cyclicity
 mcmc.f5.freq <- function() {
@@ -197,22 +243,22 @@ mcmc.f5.freq <- function() {
     ssr <- apply(post, 1, cost.5func.freq)
     min.ssr <- min(ssr)
     cat("Min SSR for MCMC : ", min.ssr, "\n")
-        
+
     ## discard first 10% as burn-in
     burnin <- (dim(post)[1] / 10)+ 1
     post <- post[burnin:dim(post)[1],]
 
     ## calculate autocorrelation times for thinning
-    acf.mat <- apply(post, 2, function(x)acf(x, lag.max=10000, plot=FALSE, n.used=nrow(post))$acf)  
+    acf.mat <- apply(post, 2, function(x)acf(x, lag.max=10000, plot=FALSE, n.used=nrow(post))$acf)
     corrtimes <- apply( acf.mat , 2, function(x){ which(x < 1/exp(1))[1] })
     max.cor <- max(corrtimes)
 
     ## thinning
     ppost <- post[seq(1, dim(post)[1], max.cor),]
-       
+
     return (post)
 }
-    
+
 ## fit models using the optim function
 fit.optim <- function() {
 

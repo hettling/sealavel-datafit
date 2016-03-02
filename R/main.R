@@ -2,8 +2,8 @@ require('lmtest')
 require('mcmc')
 set.seed(111)
 
-datafile <- 'sealevel-comp-max.txt'
-#datafile <- 'sealevel-comp-min.txt'
+datafile <- 'sealevel-comp-min.txt'
+#datafile <- 'sealevel-comp-avg.txt'
 #datafile <- 'sealevel-comp-max.txt'
 plotfile <- paste0(substr(datafile, 0, nchar(datafile)-4), '.pdf')
 restable <- paste0(substr(datafile, 0, nchar(datafile)-4), '.tsv')
@@ -22,11 +22,12 @@ amp4 <- 1#50
 amp5 <- 10
 
 ## cycle frequencies
-f1 <- 23
-f2 <- 41
-f3 <-100
-f4 <- 412
-f5 <- 2000 #initial value of third order, gets estimated
+# first two values from Berger & Loutre (1994)
+f1 <- 19 # 23 # axial precission (trend of earth axis direction to fix stars)
+f2 <- 38.5 #41 # obliquity (axial tilt)
+f3 <-100 # eccentricity 1 (shape of earths orbit around sun)
+f4 <- 412 # eccentricity 2
+f5 <- 50#2000 #initial value of third order, gets estimated
 
 ## This is our sinusoidal function
 ## For multiple cycles, multiple instances of this function (with different parameters) will be summed
@@ -37,7 +38,7 @@ ff <- function(amp, t, f, phase) {
 ## get data, units : kyears and meters, respectively
 #interval <- dat[,'interval']
 T <- as.vector(dat[,'time'])/1000
-offset <- min(T) 
+offset <- min(T)
 T <- T - offset
 level_min <- dat[,'level_min']
 level_max <- dat[,'level_max']
@@ -112,8 +113,9 @@ aic.5func.freq <- round(aic.nls[3], 3)
 
 pars.total <- vector()
 
-for (n in names(pars.avg)) {    
-    str <- paste(pars.avg[n], '(', pars.min[n], '--', pars.max[n], ')')
+## Generate ranges
+for (n in names(pars.avg)) {
+    str <- paste(pars.avg[n], '(', min(pars.min[n], pars.avg[n], pars.max[n]), '-', max(pars.min[n], pars.avg[n], pars.max[n]), ')')
     pars.total[n] <- str
 }
 
